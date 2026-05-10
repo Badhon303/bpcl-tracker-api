@@ -54,10 +54,7 @@ export class FilesController {
     }),
   )
   public uploadFile(@UploadedFile() file, @Headers('host') host: string): any {
-    host = this.configService.get('FILE_SERVER_HOST', host);
-    const baseUrl = `http://${host}/api/v1/file-serve`;
-    // const baseUrl = `http://${host}/bpcl-files/file-serve`;
-    return this.filesService.saveFile(file, baseUrl);
+    return this.filesService.saveFile(file, host);
   }
 
   @HttpCode(HttpStatus.OK)
