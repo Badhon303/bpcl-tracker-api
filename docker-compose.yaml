@@ -12,6 +12,9 @@ services:
       - db_data:/var/lib/postgresql/data
 
   bpcl-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: bpcl/bpcl-api:0.0.1
  
     ports:
