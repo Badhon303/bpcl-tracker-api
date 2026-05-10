@@ -1,0 +1,19 @@
+{
+  "moduleFileExtensions": [
+    "js",
+    "json",
+    "ts"
+  ],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    "@bpcl/fabric-api": "<rootDir>/../libs/fabric-api/src",
+    "@bpcl/fabric-api/(.*)": "<rootDir>/../libs/fabric-api/src/$1",
+    "bpcl/common": "<rootDir>/../libs/common/src",
+    "bpcl/common/(.*)": "<rootDir>/../libs/common/src/$1"
+  }
+}

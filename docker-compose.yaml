@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:14.18-alpine3.22
+    restart: always
+    environment:
+      POSTGRES_USER: bpcl
+      POSTGRES_PASSWORD: bpcl-432
+      POSTGRES_DB: bpcl
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  bpcl-api:
+    image: bpcl/bpcl-api:0.0.1
+ 
+    ports:
+      - target: 3300
+        protocol: tcp
+        published: 3300
+        mode: ingress
+ 
+    env_file: .env
+ 
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+ 
+volumes:
+  db_data:
