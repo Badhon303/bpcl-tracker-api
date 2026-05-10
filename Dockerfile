@@ -51,6 +51,9 @@ WORKDIR $APP_HOME
 COPY --from=production-deps /app/node_modules $APP_HOME/node_modules
 COPY --from=builder /app/dist/ $APP_HOME/dist/
 COPY package.json package-lock.json $APP_HOME/
+# Copy Fabric certificates
+COPY peerOrganizations/ $APP_HOME/peerOrganizations/
+COPY orderer.example.com/ $APP_HOME/orderer.example.com/
 # Create uploads directory if it doesn't exist
 RUN mkdir -p $APP_HOME/uploads
  
