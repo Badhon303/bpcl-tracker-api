@@ -183,7 +183,7 @@ export class InventoryService {
     const totalResinDhopeWeight = resinDhopeReport.resinDhopeWeight || 0;
     const totalRpWeight = parseFloat(rpStats.totalWeight) || 0;
 
-    const summary = this.inventorySummaryRepository.create({
+    const computed = {
       companyId,
       rawPlasticWeight: roundToTwo(
         procurePlasticReport.rawPlasticWeight - baleStats.totalConvertedWeight,
@@ -224,7 +224,17 @@ export class InventoryService {
       shippedResinPackageQuantity: parseInt(rpStats.shippedQty) || 0,
       totalSupplier: suppliers.length,
       totalDriver: drivers.length,
+    };
+
+    let summary = await this.inventorySummaryRepository.findOne({
+      where: { companyId },
     });
+
+    if (summary) {
+      Object.assign(summary, computed);
+    } else {
+      summary = this.inventorySummaryRepository.create(computed);
+    }
 
     return this.inventorySummaryRepository.save(summary);
   }
@@ -232,13 +242,7 @@ export class InventoryService {
   async getInventorySummaryReport(
     companyId: number,
   ): Promise<InventorySummaryReportDTO> {
-    let summary = await this.inventorySummaryRepository.findOne({
-      where: { companyId },
-    });
-
-    if (!summary) {
-      summary = await this.backfillSummaryFromSource(companyId);
-    }
+    const summary = await this.backfillSummaryFromSource(companyId);
 
     const totalBaleWeight =
       summary.whiteBaleWeight +
