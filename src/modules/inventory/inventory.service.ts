@@ -1,4 +1,4 @@
-import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
 import { Repository } from 'typeorm';
@@ -23,6 +23,8 @@ import { InventorySummary } from './entities/inventory-summary.entity';
 
 @Injectable()
 export class InventoryService {
+  private readonly logger = new Logger(InventoryService.name);
+
   constructor(
     @InjectRepository(InventorySummary)
     private inventorySummaryRepository: Repository<InventorySummary>,
@@ -182,6 +184,18 @@ export class InventoryService {
     const totalLotWeight = parseFloat(lotStats.totalWeight) || 0;
     const totalResinDhopeWeight = resinDhopeReport.resinDhopeWeight || 0;
     const totalRpWeight = parseFloat(rpStats.totalWeight) || 0;
+
+    this.logger.log(
+      `backfillSummaryFromSource for companyId=${companyId}: ` +
+        `procurePlasticWeight=${procurePlasticReport.rawPlasticWeight}, ` +
+        `baleStats=${JSON.stringify(baleStats)}, ` +
+        `preproductWeight=${totalPreproductWeight}, ` +
+        `resinDhopeWeight=${totalResinDhopeWeight}, ` +
+        `ppStats=${JSON.stringify(ppStats)}, ` +
+        `rpStats=${JSON.stringify(rpStats)}, ` +
+        `lotStats=${JSON.stringify(lotStats)}, ` +
+        `suppliers=${suppliers.length}, drivers=${drivers.length}`,
+    );
 
     const computed = {
       companyId,
