@@ -401,6 +401,118 @@ export class BaleService {
     };
   }
 
+  async getComprehensiveBaleStats(companyId: number) {
+    const result = await this.baleRepository
+      .createQueryBuilder('bale')
+      .select('COALESCE(SUM(bale.quantity), 0)', 'totalConvertedWeight')
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN bale.status = 'Created' AND bale.packagingType = 'Bale' THEN bale.quantity ELSE 0 END), 0)`,
+        'baleWeight',
+      )
+      .addSelect(
+        `COUNT(CASE WHEN bale.status = 'Created' AND bale.packagingType = 'Bale' THEN 1 END)`,
+        'baleQuantity',
+      )
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN bale.status = 'Created' AND bale.packagingType = 'Flakes' THEN bale.quantity ELSE 0 END), 0)`,
+        'flakeWeight',
+      )
+      .addSelect(
+        `COUNT(CASE WHEN bale.status = 'Created' AND bale.packagingType = 'Flakes' THEN 1 END)`,
+        'flakeQuantity',
+      )
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN bale.status = 'Created' AND bale.packagingType = 'Bale' AND bale.productType = 'White Bottle' THEN bale.quantity ELSE 0 END), 0)`,
+        'whiteBaleWeight',
+      )
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN bale.status = 'Created' AND bale.packagingType = 'Bale' AND bale.productType = 'Green Bottle' THEN bale.quantity ELSE 0 END), 0)`,
+        'greenBaleWeight',
+      )
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN bale.status = 'Created' AND bale.packagingType = 'Bale' AND bale.productType = 'Brown Bottle' THEN bale.quantity ELSE 0 END), 0)`,
+        'brownBaleWeight',
+      )
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN bale.status = 'Created' AND bale.packagingType = 'Flakes' AND bale.productType = 'White Bottle' THEN bale.quantity ELSE 0 END), 0)`,
+        'whiteFlakeWeight',
+      )
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN bale.status = 'Created' AND bale.packagingType = 'Flakes' AND bale.productType = 'Green Bottle' THEN bale.quantity ELSE 0 END), 0)`,
+        'greenFlakeWeight',
+      )
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN bale.status = 'Created' AND bale.packagingType = 'Flakes' AND bale.productType = 'Brown Bottle' THEN bale.quantity ELSE 0 END), 0)`,
+        'brownFlakeWeight',
+      )
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN bale.status = 'Shipped' AND bale.packagingType = 'Bale' THEN bale.baleShipmentWeight ELSE 0 END), 0)`,
+        'shippedBaleWeight',
+      )
+      .addSelect(
+        `COUNT(CASE WHEN bale.status = 'Shipped' AND bale.packagingType = 'Bale' THEN 1 END)`,
+        'shippedBaleQuantity',
+      )
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN bale.status = 'Shipped' AND bale.packagingType = 'Flakes' THEN bale.baleShipmentWeight ELSE 0 END), 0)`,
+        'shippedFlakeWeight',
+      )
+      .addSelect(
+        `COUNT(CASE WHEN bale.status = 'Shipped' AND bale.packagingType = 'Flakes' THEN 1 END)`,
+        'shippedFlakeQuantity',
+      )
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN bale.status = 'Received' AND bale.packagingType = 'Bale' THEN bale.baleShipmentWeight ELSE 0 END), 0)`,
+        'unloadedBaleWeight',
+      )
+      .addSelect(
+        `COUNT(CASE WHEN bale.status = 'Received' AND bale.packagingType = 'Bale' THEN 1 END)`,
+        'unloadedBaleQuantity',
+      )
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN bale.status = 'Received' AND bale.packagingType = 'Flakes' THEN bale.baleShipmentWeight ELSE 0 END), 0)`,
+        'unloadedFlakeWeight',
+      )
+      .addSelect(
+        `COUNT(CASE WHEN bale.status = 'Received' AND bale.packagingType = 'Flakes' THEN 1 END)`,
+        'unloadedFlakeQuantity',
+      )
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN bale.status = 'Processed' THEN bale.baleShipmentWeight ELSE 0 END), 0)`,
+        'batchWeight',
+      )
+      .addSelect(
+        `COUNT(CASE WHEN bale.status = 'Processed' THEN 1 END)`,
+        'baleQuantityInBatch',
+      )
+      .where('bale.companyId = :companyId', { companyId })
+      .getRawOne();
+
+    return {
+      totalConvertedWeight: parseFloat(result.totalConvertedWeight) || 0,
+      baleWeight: parseFloat(result.baleWeight) || 0,
+      baleQuantity: parseInt(result.baleQuantity) || 0,
+      flakeWeight: parseFloat(result.flakeWeight) || 0,
+      flakeQuantity: parseInt(result.flakeQuantity) || 0,
+      whiteBaleWeight: parseFloat(result.whiteBaleWeight) || 0,
+      greenBaleWeight: parseFloat(result.greenBaleWeight) || 0,
+      brownBaleWeight: parseFloat(result.brownBaleWeight) || 0,
+      whiteFlakeWeight: parseFloat(result.whiteFlakeWeight) || 0,
+      greenFlakeWeight: parseFloat(result.greenFlakeWeight) || 0,
+      brownFlakeWeight: parseFloat(result.brownFlakeWeight) || 0,
+      shippedBaleWeight: parseFloat(result.shippedBaleWeight) || 0,
+      shippedBaleQuantity: parseInt(result.shippedBaleQuantity) || 0,
+      shippedFlakeWeight: parseFloat(result.shippedFlakeWeight) || 0,
+      shippedFlakeQuantity: parseInt(result.shippedFlakeQuantity) || 0,
+      unloadedBaleWeight: parseFloat(result.unloadedBaleWeight) || 0,
+      unloadedBaleQuantity: parseInt(result.unloadedBaleQuantity) || 0,
+      unloadedFlakeWeight: parseFloat(result.unloadedFlakeWeight) || 0,
+      unloadedFlakeQuantity: parseInt(result.unloadedFlakeQuantity) || 0,
+      batchWeight: parseFloat(result.batchWeight) || 0,
+      baleQuantityInBatch: parseInt(result.baleQuantityInBatch) || 0,
+    };
+  }
+
   async findById(id: number): Promise<BaleResponseDTO> {
     const bale = await this.baleRepository.findOne({
       where: { id },

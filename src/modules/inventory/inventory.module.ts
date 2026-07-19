@@ -14,10 +14,18 @@ import { InventorySummary } from './entities/inventory-summary.entity';
 import { InventorySummaryListener } from './listeners/inventory-summary.listener';
 import { SupplierModule } from '../supplier/supplier.module';
 import { TransportModule } from '../transport/transport.module';
+import { PreproductPackage } from '../preproduct-package/entities/preproduct-package.entity';
+import { ResinPackage } from '../resin-package/entities/resin-package.entity';
+import { Lot } from '../lot/entities/lot.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([InventorySummary]),
+    TypeOrmModule.forFeature([
+      InventorySummary,
+      PreproductPackage,
+      ResinPackage,
+      Lot,
+    ]),
     ProcurePlasticModule,
     forwardRef(() => BaleModule),
     forwardRef(() => ShipmentModule),
