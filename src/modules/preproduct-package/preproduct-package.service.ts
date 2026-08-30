@@ -55,57 +55,96 @@ export class PreproductPackageService {
         createPreproductPackageDto.preproductId,
       );
 
+      let remainingPreproduct;
       if (createPreproductPackageDto.remainingPreproductId) {
-        await this.preproductService.findById(
+        remainingPreproduct = await this.preproductService.findById(
           createPreproductPackageDto.remainingPreproductId,
         );
       }
 
-      const existing = await queryRunner.manager.findOne(PreproductPackage, {
-        where: { preproductId: createPreproductPackageDto.preproductId },
-      });
+      // Weight already packaged from this preproduct in previous (manual) calls
+      const { alreadyPackagedWeight } = await queryRunner.manager
+        .createQueryBuilder(PreproductPackage, 'pkg')
+        .select('COALESCE(SUM(pkg.packageWeight), 0)', 'alreadyPackagedWeight')
+        .where('pkg.preproductId = :preproductId', {
+          preproductId: createPreproductPackageDto.preproductId,
+        })
+        .getRawOne();
 
-      if (existing) {
+      const availableMainWeight =
+        preproduct.preproductWeight - Number(alreadyPackagedWeight);
+
+      let availableRemainingWeight = 0;
+      if (createPreproductPackageDto.remainingPreproductId) {
+        // Weight of the remaining preproduct already merged into other packages.
+        // remainingWeight is duplicated across every package created in the same
+        // call, so dedupe by preproductId before summing.
+        const remainingUsageRows = await queryRunner.manager
+          .createQueryBuilder(PreproductPackage, 'pkg')
+          .select('pkg.preproductId', 'preproductId')
+          .addSelect('MAX(pkg.remainingWeight)', 'remainingWeight')
+          .where('pkg.remainingPreproductId = :remainingPreproductId', {
+            remainingPreproductId:
+              createPreproductPackageDto.remainingPreproductId,
+          })
+          .groupBy('pkg.preproductId')
+          .getRawMany<{ preproductId: number; remainingWeight: string }>();
+
+        const alreadyUsedRemainingWeight = remainingUsageRows.reduce(
+          (sum, row) => sum + (parseFloat(row.remainingWeight) || 0),
+          0,
+        );
+
+        availableRemainingWeight =
+          remainingPreproduct.preproductWeight - alreadyUsedRemainingWeight;
+
+        if (
+          (createPreproductPackageDto.remainingWeight || 0) >
+          availableRemainingWeight
+        ) {
+          throw new ConflictException(
+            `Remaining weight exceeds the available weight (${availableRemainingWeight}kg) of preproduct ${createPreproductPackageDto.remainingPreproductId}`,
+          );
+        }
+      }
+
+      const totalAvailableWeight =
+        availableMainWeight + (createPreproductPackageDto.remainingWeight || 0);
+
+      const requestedWeight = createPreproductPackageDto.packageWeights.reduce(
+        (sum, weight) => sum + weight,
+        0,
+      );
+
+      if (requestedWeight > totalAvailableWeight) {
         throw new ConflictException(
-          'Packages are already created from this preproduct dhope',
+          `Requested package weight (${requestedWeight}kg) exceeds the available weight (${totalAvailableWeight}kg) of preproduct ${createPreproductPackageDto.preproductId}`,
         );
       }
 
-      // Calculate total weight and number of packages
-      const totalWeight =
-        preproduct.preproductWeight +
-        (createPreproductPackageDto.remainingWeight || 0);
-      const maxPackages = Math.floor(
-        totalWeight / createPreproductPackageDto.packageWeight,
-      );
-
-      // Create packages
-      const packages: PreproductPackage[] = [];
-      const createdPackageIds: number[] = [];
-      for (let i = 0; i < maxPackages; i++) {
-        const pkg = queryRunner.manager.create(PreproductPackage, {
-          ...createPreproductPackageDto,
+      // Create one package per custom weight provided by the user
+      const { packageWeights, ...packageData } = createPreproductPackageDto;
+      const packages: PreproductPackage[] = packageWeights.map((weight) =>
+        queryRunner.manager.create(PreproductPackage, {
+          ...packageData,
+          packageWeight: weight,
           createdAt: new Date(),
           updatedAt: new Date(),
           createdBy: createPreproductPackageDto.userId,
           updatedBy: createPreproductPackageDto.userId,
-        });
-        packages.push(pkg);
-      }
+        }),
+      );
 
-      // Save packages
-      if (packages.length > 0) {
-        const savedPackages = await queryRunner.manager.save(packages);
-        createdPackageIds.push(...savedPackages.map((pkg) => pkg.id));
-      }
+      const savedPackages = await queryRunner.manager.save(packages);
+      const createdPackageIds = savedPackages.map((pkg) => pkg.id);
 
       // Emit event here
       this.eventEmitter.emit(
         'preproduct-package.created',
         new PreproductPackageCreatedEvent(
           company.id,
-          maxPackages,
-          maxPackages * createPreproductPackageDto.packageWeight,
+          savedPackages.length,
+          requestedWeight,
         ),
       );
 

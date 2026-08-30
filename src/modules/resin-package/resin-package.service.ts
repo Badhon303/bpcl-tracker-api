@@ -58,49 +58,87 @@ export class ResinPackageService {
         createResinPackageDto.resinDhopeId,
       );
 
+      let remainingResinDhope;
       if (createResinPackageDto.remainingResinDhopeId) {
-        await this.resinDhopeService.findById(
+        remainingResinDhope = await this.resinDhopeService.findById(
           createResinPackageDto.remainingResinDhopeId,
         );
       }
 
-      const existing = await queryRunner.manager.findOne(ResinPackage, {
-        where: { resinDhopeId: createResinPackageDto.resinDhopeId },
-      });
+      // Weight already packaged from this resin dhope in previous (manual) calls
+      const { alreadyPackagedWeight } = await queryRunner.manager
+        .createQueryBuilder(ResinPackage, 'pkg')
+        .select('COALESCE(SUM(pkg.packageWeight), 0)', 'alreadyPackagedWeight')
+        .where('pkg.resinDhopeId = :resinDhopeId', {
+          resinDhopeId: createResinPackageDto.resinDhopeId,
+        })
+        .getRawOne();
 
-      if (existing) {
+      const availableMainWeight =
+        resinDhope.resinDhopeWeight - Number(alreadyPackagedWeight);
+
+      let availableRemainingWeight = 0;
+      if (createResinPackageDto.remainingResinDhopeId) {
+        // Weight of the remaining resin dhope already merged into other packages.
+        // remainingWeight is duplicated across every package created in the same
+        // call, so dedupe by resinDhopeId before summing.
+        const remainingUsageRows = await queryRunner.manager
+          .createQueryBuilder(ResinPackage, 'pkg')
+          .select('pkg.resinDhopeId', 'resinDhopeId')
+          .addSelect('MAX(pkg.remainingWeight)', 'remainingWeight')
+          .where('pkg.remainingResinDhopeId = :remainingResinDhopeId', {
+            remainingResinDhopeId: createResinPackageDto.remainingResinDhopeId,
+          })
+          .groupBy('pkg.resinDhopeId')
+          .getRawMany<{ resinDhopeId: number; remainingWeight: string }>();
+
+        const alreadyUsedRemainingWeight = remainingUsageRows.reduce(
+          (sum, row) => sum + (parseFloat(row.remainingWeight) || 0),
+          0,
+        );
+
+        availableRemainingWeight =
+          remainingResinDhope.resinDhopeWeight - alreadyUsedRemainingWeight;
+
+        if (
+          (createResinPackageDto.remainingWeight || 0) >
+          availableRemainingWeight
+        ) {
+          throw new ConflictException(
+            `Remaining weight exceeds the available weight (${availableRemainingWeight}kg) of resin dhope ${createResinPackageDto.remainingResinDhopeId}`,
+          );
+        }
+      }
+
+      const totalAvailableWeight =
+        availableMainWeight + (createResinPackageDto.remainingWeight || 0);
+
+      const requestedWeight = createResinPackageDto.packageWeights.reduce(
+        (sum, weight) => sum + weight,
+        0,
+      );
+
+      if (requestedWeight > totalAvailableWeight) {
         throw new ConflictException(
-          'Resin packages are already created from this resin dhope',
+          `Requested package weight (${requestedWeight}kg) exceeds the available weight (${totalAvailableWeight}kg) of resin dhope ${createResinPackageDto.resinDhopeId}`,
         );
       }
 
-      // Calculate total weight and number of packages
-      const totalWeight =
-        resinDhope.resinDhopeWeight +
-        (createResinPackageDto.remainingWeight || 0);
-      const maxPackages = Math.floor(
-        totalWeight / createResinPackageDto.packageWeight,
-      );
-
-      // Create packages
-      const resinPackages: ResinPackage[] = [];
-      const createdPackageIds: number[] = [];
-      for (let i = 0; i < maxPackages; i++) {
-        const pkg = queryRunner.manager.create(ResinPackage, {
-          ...createResinPackageDto,
+      // Create one package per custom weight provided by the user
+      const { packageWeights, ...packageData } = createResinPackageDto;
+      const resinPackages: ResinPackage[] = packageWeights.map((weight) =>
+        queryRunner.manager.create(ResinPackage, {
+          ...packageData,
+          packageWeight: weight,
           createdAt: new Date(),
           updatedAt: new Date(),
           createdBy: createResinPackageDto.userId,
           updatedBy: createResinPackageDto.userId,
-        });
-        resinPackages.push(pkg);
-      }
+        }),
+      );
 
-      // Save packages
-      if (resinPackages.length > 0) {
-        const savedPackages = await queryRunner.manager.save(resinPackages);
-        createdPackageIds.push(...savedPackages.map((pkg) => pkg.id));
-      }
+      const savedPackages = await queryRunner.manager.save(resinPackages);
+      const createdPackageIds = savedPackages.map((pkg) => pkg.id);
 
       await this.saveToFabric(resinPackages, company);
 
@@ -109,8 +147,8 @@ export class ResinPackageService {
         'resin-package.created',
         new ResinPackageCreatedEvent(
           company.id,
-          maxPackages,
-          maxPackages * createResinPackageDto.packageWeight,
+          savedPackages.length,
+          requestedWeight,
         ),
       );
 
