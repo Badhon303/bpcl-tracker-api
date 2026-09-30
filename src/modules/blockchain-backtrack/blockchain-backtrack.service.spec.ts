@@ -157,6 +157,24 @@ describe('BlockchainBacktrackService', () => {
     });
   });
 
+  it('loads a public resin package by ID without companyId', async () => {
+    resinPackageRepository.findOne.mockResolvedValue({
+      id: 12,
+      resinDhopeId: 4,
+      companyId: 1,
+      packageWeight: 10,
+      remainingWeight: 0,
+    });
+
+    const result = await service.backtrackResinFromBackend(12, {} as any);
+
+    expect(resinPackageRepository.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 12 } }),
+    );
+    expect(companyService.findById).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ success: true, data: { id: 12 } });
+  });
+
   it('loads preproduct backtrack data from the backend database', async () => {
     preproductPackageRepository.findOne.mockResolvedValue({
       id: 396,
@@ -218,6 +236,23 @@ describe('BlockchainBacktrackService', () => {
         },
       },
     });
+  });
+
+  it('loads a public preproduct package by ID without companyId', async () => {
+    preproductPackageRepository.findOne.mockResolvedValue({
+      id: 387,
+      preproductId: 173,
+      companyId: 1,
+      packageWeight: 10,
+    });
+
+    const result = await service.backtrackPreproductFromBackend(387, {} as any);
+
+    expect(preproductPackageRepository.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 387 } }),
+    );
+    expect(companyService.findById).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ success: true, data: { id: 387 } });
   });
 
   it('attaches safe procurement details to batch bales', async () => {

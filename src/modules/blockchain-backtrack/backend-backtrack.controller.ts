@@ -81,7 +81,7 @@ export class BackendBacktrackController {
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
-    description: 'Resin package not found for the specified company.',
+    description: 'Resin package not found.',
   })
   async backtrackResin(
     @Param('id') id: number,

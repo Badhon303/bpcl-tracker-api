@@ -144,21 +144,27 @@ export class BlockchainBacktrackService {
     query: BacktrackQueryDTO,
   ): Promise<any> {
     const packageId = Number(id);
-    const companyId = Number(query.companyId);
+    const companyId =
+      query?.companyId == null ? undefined : Number(query.companyId);
     if (
       !Number.isInteger(packageId) ||
       packageId <= 0 ||
-      !Number.isInteger(companyId) ||
-      companyId <= 0
+      (companyId !== undefined &&
+        (!Number.isInteger(companyId) || companyId <= 0))
     ) {
       throw new BadRequestException(
         'Valid package ID and companyId are required',
       );
     }
 
-    await this.companyService.findById(companyId);
+    if (companyId !== undefined) {
+      await this.companyService.findById(companyId);
+    }
     const preproductPackage = await this.preproductPackageRepository.findOne({
-      where: { id: packageId, companyId },
+      where:
+        companyId === undefined
+          ? { id: packageId }
+          : { id: packageId, companyId },
       relations: [
         'preproduct',
         'preproduct.batch',
@@ -173,7 +179,7 @@ export class BlockchainBacktrackService {
 
     if (!preproductPackage) {
       throw new NotFoundException(
-        `Preproduct package ${packageId} was not found for company ${companyId}`,
+        `Preproduct package ${packageId} was not found`,
       );
     }
 
@@ -189,21 +195,25 @@ export class BlockchainBacktrackService {
     query: BacktrackQueryDTO,
   ): Promise<any> {
     const resinPackageId = Number(id);
-    const companyId = Number(query.companyId);
+    const companyId =
+      query?.companyId == null ? undefined : Number(query.companyId);
     if (
       !Number.isInteger(resinPackageId) ||
       resinPackageId <= 0 ||
-      !Number.isInteger(companyId) ||
-      companyId <= 0
+      (companyId !== undefined &&
+        (!Number.isInteger(companyId) || companyId <= 0))
     ) {
-      throw new BadRequestException(
-        'Valid resin package ID and companyId are required',
-      );
+      throw new BadRequestException('Invalid resin package ID or companyId');
     }
 
-    await this.companyService.findById(companyId);
+    if (companyId !== undefined) {
+      await this.companyService.findById(companyId);
+    }
     const resinPackage = await this.resinPackageRepository.findOne({
-      where: { id: resinPackageId, companyId },
+      where:
+        companyId === undefined
+          ? { id: resinPackageId }
+          : { id: resinPackageId, companyId },
       relations: [
         'resinDhope',
         'resinDhope.lot',
@@ -224,7 +234,7 @@ export class BlockchainBacktrackService {
 
     if (!resinPackage) {
       throw new NotFoundException(
-        `Resin package ${resinPackageId} was not found for company ${companyId}`,
+        `Resin package ${resinPackageId} was not found`,
       );
     }
 
