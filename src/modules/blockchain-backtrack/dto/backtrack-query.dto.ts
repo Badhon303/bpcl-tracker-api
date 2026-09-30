@@ -3,7 +3,7 @@ import { IsInt, IsNotEmpty } from 'class-validator';
 
 export class BacktrackQueryDTO {
   @ApiProperty({
-    description: 'Company ID for blockchain context',
+    description: 'Company ID used for the backtrack request',
     example: 1,
     type: Number,
   })
