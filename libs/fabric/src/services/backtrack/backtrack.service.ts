@@ -37,8 +37,8 @@ export class bBacktrackService {
   async backtrackResin(
     id: number,
     orgContext: bOrganizationContext,
-  ): Promise<any | null> {
-    let resinPackage = await this.getResinPackagefromFabric(id, orgContext);
+  ): Promise<any> {
+    const resinPackage = await this.getResinPackagefromFabric(id, orgContext);
     if (resinPackage == null) {
       this.logger.error('Resin package not found for ID:', id);
       return null;
@@ -633,6 +633,9 @@ export class bBacktrackService {
         status: result.status,
         latitude: result.latitude,
         longitude: result.longitude,
+        procurePlasticId: result.procurePlasticId
+          ? parseInt(result.procurePlasticId)
+          : undefined,
       };
 
       // now from company id get the cpmpany name and add it inside bale data
@@ -669,7 +672,6 @@ export class bBacktrackService {
     //first calculate weight percentage for each company in the main batch
     if (batch && batch.bales && batch.bales.length > 0) {
       const bales = batch.bales;
-      const totalBales = bales.length;
       const companyWiseCount: { [companyId: number]: number } = {};
 
       for (const bale of bales) {
@@ -709,7 +711,6 @@ export class bBacktrackService {
       remainingBatch.bales.length > 0
     ) {
       const bales = remainingBatch.bales;
-      const totalBales = bales.length;
       const companyWiseCount: { [companyId: number]: number } = {};
 
       for (const bale of bales) {
@@ -872,7 +873,6 @@ export class bBacktrackService {
     const companyWisePercentage: { [companyId: number]: number } = {};
     if (batch && batch.bales && batch.bales.length > 0) {
       const bales = batch.bales;
-      const totalBales = bales.length;
       const companyWiseCount: { [companyId: number]: number } = {};
 
       for (const bale of bales) {

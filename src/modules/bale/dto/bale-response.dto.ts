@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsInt,
   IsNumber,
+  IsOptional,
   IsString,
 } from 'class-validator';
 import { BaleStatus } from '../enum/status.enum';
@@ -118,6 +119,15 @@ export class BaleResponseDTO {
   @IsInt()
   @Expose()
   updatedBy: number;
+
+  @ApiPropertyOptional({
+    description: 'Optional procure plastic record associated with the bale',
+    example: 123,
+  })
+  @IsInt()
+  @IsOptional()
+  @Expose()
+  procurePlasticId?: number;
 
   @ApiProperty({
     description: 'Company ID for the bale',

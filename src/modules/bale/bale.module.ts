@@ -7,10 +7,11 @@ import { BaleService } from './bale.service';
 import { Bale } from './entities/bale.entity';
 import { FabricModule } from '@bpcl/fabric';
 import { InventoryModule } from '../inventory/inventory.module';
+import { ProcurePlastic } from '../procure-plastic/entities/procure-plastic.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Bale]),
+    TypeOrmModule.forFeature([Bale, ProcurePlastic]),
     CompanyModule,
     AuthModule,
     FabricModule,

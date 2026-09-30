@@ -25,6 +25,7 @@ import { CreateBaleDTO } from './dto/create-bale.dto';
 import { GetBaleReportDTO } from './dto/get-bale-report.dto';
 import { GetBaleDTO } from './dto/get-bale.dto';
 import { Bale } from './entities/bale.entity';
+import { ProcurePlastic } from '../procure-plastic/entities/procure-plastic.entity';
 import { BaleStatus } from './enum/status.enum';
 import { randomUUID } from 'crypto';
 
@@ -39,6 +40,8 @@ export class BaleService {
   constructor(
     @InjectRepository(Bale)
     private baleRepository: Repository<Bale>,
+    @InjectRepository(ProcurePlastic)
+    private procurePlasticRepository: Repository<ProcurePlastic>,
     private companyService: CompanyService,
     private authService: AuthService,
     private baleService: bBaleService,
@@ -64,6 +67,17 @@ export class BaleService {
       const company = await this.companyService.findById(createDto.companyId);
 
       await this.authService.findById(createDto.userId);
+
+      if (createDto.procurePlasticId != null) {
+        const procurePlastic = await this.procurePlasticRepository.findOne({
+          where: { id: createDto.procurePlasticId, companyId: company.id },
+        });
+        if (!procurePlastic) {
+          throw new NotFoundException(
+            'Procurement record not found for this company',
+          );
+        }
+      }
 
       this.logger.log(`[${transactionId}] Company and User validated`);
 
@@ -553,6 +567,7 @@ export class BaleService {
       status: bale.status ? bale.status : 'CREATED',
       latitude: bale.latitude ? bale.latitude : 0,
       longitude: bale.longitude ? bale.longitude : 0,
+      procurePlasticId: bale.procurePlasticId,
     };
     const orgContext: bOrganizationContext = {
       channelName: company.channelName,

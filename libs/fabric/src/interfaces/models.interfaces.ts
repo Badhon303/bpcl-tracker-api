@@ -32,6 +32,7 @@ export interface bBaleData {
   status: string;
   latitude?: number;
   longitude?: number;
+  procurePlasticId?: number;
 }
 
 export interface bShipmentData {

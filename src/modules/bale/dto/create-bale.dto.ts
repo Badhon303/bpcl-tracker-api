@@ -58,6 +58,15 @@ export class CreateBaleDTO {
   @Max(180)
   longitude: number;
 
+  @ApiPropertyOptional({
+    description: 'Optional procure plastic record associated with the bale',
+    example: 123,
+  })
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  procurePlasticId?: number;
+
   @ApiProperty({
     description: 'Company ID for the bale',
     example: '1',

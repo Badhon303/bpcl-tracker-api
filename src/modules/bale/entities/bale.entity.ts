@@ -13,6 +13,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Company } from '../../company/entities/company.entity';
+import { ProcurePlastic } from '../../procure-plastic/entities/procure-plastic.entity';
 import { BaleStatus } from '../enum/status.enum';
 
 @Entity('bales')
@@ -61,6 +62,13 @@ export class Bale {
 
   @Column()
   userId: number;
+
+  @Column({ nullable: true })
+  procurePlasticId: number;
+
+  @ManyToOne(() => ProcurePlastic, { nullable: true })
+  @JoinColumn({ name: 'procurePlasticId' })
+  procurePlastic: ProcurePlastic;
 
   @ManyToOne(() => Company, (company) => company.bales)
   @JoinColumn({ name: 'companyId' })

@@ -44,6 +44,7 @@ export class bBaleService {
         baleData.createdAt.toString(),
         baleData.latitude.toString(),
         baleData.longitude.toString(),
+        baleData.procurePlasticId?.toString() ?? '',
       );
 
       this.logger.log(
