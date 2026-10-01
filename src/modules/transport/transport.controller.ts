@@ -93,10 +93,18 @@ export class TransportController {
     description: 'Filter drivers by company ID',
     type: Number,
   })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   async findAll(
     @Query('companyId') companyId?: number,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ): Promise<RegisterDriver[]> {
-    return this.transportService.findAllDriver(companyId);
+    return this.transportService.findAllDriver(
+      companyId,
+      Number(page),
+      Number(limit),
+    );
   }
 
   @Post('register-vehicles')
@@ -151,9 +159,17 @@ export class TransportController {
     description: 'Filter vehicles by company ID',
     type: Number,
   })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   async findAllVehicles(
     @Query('companyId') companyId?: number,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ): Promise<RegisterVehicle[]> {
-    return this.transportService.findAllVehicle(companyId);
+    return this.transportService.findAllVehicle(
+      companyId,
+      Number(page),
+      Number(limit),
+    );
   }
 }

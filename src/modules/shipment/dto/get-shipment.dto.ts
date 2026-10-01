@@ -37,4 +37,12 @@ export class GetShipmentDTO {
   @IsString()
   @IsOptional()
   status?: string;
+
+  @ApiProperty({ required: false, example: 1 })
+  @IsOptional()
+  page?: number;
+
+  @ApiProperty({ required: false, example: 20 })
+  @IsOptional()
+  limit?: number;
 }

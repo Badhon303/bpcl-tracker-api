@@ -47,16 +47,33 @@ export class TransportService {
     return savedDriver;
   }
 
-  async findAllDriver(companyId?: number): Promise<RegisterDriver[]> {
+  async findAllDriver(
+    companyId?: number,
+    page?: number,
+    limit?: number,
+  ): Promise<RegisterDriver[]> {
     if (companyId) {
       await this.companyService.findById(companyId);
     }
+
+    const requestedPage = Number(page);
+    const safePage = Number.isFinite(requestedPage)
+      ? Math.max(Math.trunc(requestedPage), 1)
+      : 1;
+    const safeLimit =
+      limit !== undefined && Number.isFinite(limit) && limit > 0
+        ? Math.max(1, Math.min(Math.trunc(limit), 100))
+        : undefined;
 
     return await this.registerDriverRepository.find({
       where: { companyId },
       order: {
         driverName: 'ASC',
+        id: 'ASC',
       },
+      ...(safeLimit
+        ? { skip: (safePage - 1) * safeLimit, take: safeLimit }
+        : {}),
     });
   }
 
@@ -93,16 +110,33 @@ export class TransportService {
     return savedVehicle;
   }
 
-  async findAllVehicle(companyId?: number): Promise<RegisterVehicle[]> {
+  async findAllVehicle(
+    companyId?: number,
+    page?: number,
+    limit?: number,
+  ): Promise<RegisterVehicle[]> {
     if (companyId) {
       await this.companyService.findById(companyId);
     }
+
+    const requestedPage = Number(page);
+    const safePage = Number.isFinite(requestedPage)
+      ? Math.max(Math.trunc(requestedPage), 1)
+      : 1;
+    const safeLimit =
+      limit !== undefined && Number.isFinite(limit) && limit > 0
+        ? Math.max(1, Math.min(Math.trunc(limit), 100))
+        : undefined;
 
     return await this.registerVehicleRepository.find({
       where: { companyId },
       order: {
         brtcNumber: 'ASC',
+        id: 'ASC',
       },
+      ...(safeLimit
+        ? { skip: (safePage - 1) * safeLimit, take: safeLimit }
+        : {}),
     });
   }
 

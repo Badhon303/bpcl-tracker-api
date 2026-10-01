@@ -16,8 +16,21 @@ export class CompanyService {
     return this.companyRepository.save(company);
   }
 
-  async findAll(): Promise<Company[]> {
-    return this.companyRepository.find({ where: { type: 'RBU' } });
+  async findAll(page?: number, limit?: number): Promise<Company[]> {
+    const options: Parameters<Repository<Company>['find']>[0] = {
+      where: { type: 'RBU' },
+      order: { id: 'ASC' },
+    };
+    if (limit !== undefined && Number.isFinite(limit) && limit > 0) {
+      const safeLimit = Math.max(1, Math.min(Math.trunc(limit), 100));
+      const safePage =
+        page !== undefined && Number.isFinite(page)
+          ? Math.max(Math.trunc(page || 1), 1)
+          : 1;
+      options.skip = (safePage - 1) * safeLimit;
+      options.take = safeLimit;
+    }
+    return this.companyRepository.find(options);
   }
 
   async findById(id: number): Promise<Company> {

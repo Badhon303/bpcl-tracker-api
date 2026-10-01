@@ -28,4 +28,20 @@ export class GetProcurePlasticDTO {
   @IsInt()
   @IsOptional()
   companyId?: number;
+
+  @ApiProperty({
+    description: 'Page number, starting at 1 (optional, used with limit)',
+    example: 1,
+    required: false,
+  })
+  @IsOptional()
+  page?: number;
+
+  @ApiProperty({
+    description: 'Page size (optional). When omitted all records are returned',
+    example: 20,
+    required: false,
+  })
+  @IsOptional()
+  limit?: number;
 }

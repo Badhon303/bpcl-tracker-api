@@ -691,7 +691,7 @@ async function main(): Promise<void> {
       0,
     );
     const associationTransactions =
-      shipmentBales.length + batchBales.length + (mode === '--resume' ? unloadBales.length : 0);
+      shipmentBales.length + batchBales.length + (mode === '--resume' ? unloadShipments.length : 0);
     const updates = bales.length;
     console.log(
       `DB=${process.env.DB_NAME}; routes=${routes.map((route) => route.key).join(', ')}`,
@@ -940,6 +940,9 @@ async function main(): Promise<void> {
     const unloadBalesById = groupLinks(unloadBales, 'unloadShipmentId');
     await runPool(unloadShipments, concurrency, async (row) => {
       const route = getRowRoute(row, companies);
+      const baleIds = (unloadBalesById.get(row.id) ?? []).map((link) =>
+        Number(link.baleId),
+      );
       let record = findStateRecord(
         state,
         route,
@@ -949,9 +952,6 @@ async function main(): Promise<void> {
       );
       if (!record) {
         const afterUnload = Number(row.totalWeightAfterUnload ?? 0);
-        const baleIds = (unloadBalesById.get(row.id) ?? []).map((link) =>
-          Number(link.baleId),
-        );
         await submit(`unload shipment ${row.id}`, () =>
           app.get(bUnloadShipmentService).createUnloadShipment(
             {
@@ -972,18 +972,29 @@ async function main(): Promise<void> {
             route,
           ),
         );
-        record = { id: row.id, baleIds };
+        record = { id: row.id, baleIds, totalBales: baleIds.length };
         addRecord('unloadShipments', row, record);
+        return;
       }
-      for (const link of unloadBalesById.get(row.id) ?? []) {
-        const baleIds = idList(record.baleIds);
-        if (baleIds.includes(Number(link.baleId))) continue;
-        await submit(`unload shipment ${row.id} bale ${link.baleId}`, () =>
-          app
-            .get(bUnloadShipmentService)
-            .addBaleToUnloadShipment(row.id, Number(link.baleId), route),
+      const currentBaleIds = idList(record.baleIds).sort((a, b) => a - b);
+      const expectedBaleIds = [...baleIds].sort((a, b) => a - b);
+      const linksMatch = JSON.stringify(currentBaleIds) === JSON.stringify(expectedBaleIds);
+      const countMatches =
+        typeof record.totalBales === 'number' && record.totalBales === baleIds.length;
+      if (!linksMatch || !countMatches) {
+        await transactionHandler.ensureInitialized(
+          fabricConfig.getNetworkConfigForOrg(route.userOrg),
+          route,
         );
-        record.baleIds = [...baleIds, Number(link.baleId)];
+        await submitRaw(() =>
+          transactionHandler.submitTransaction(
+            'replaceUnloadShipmentBales',
+            row.id.toString(),
+            JSON.stringify(baleIds),
+          ),
+        );
+        record.baleIds = baleIds;
+        record.totalBales = baleIds.length;
       }
     });
 
@@ -1238,7 +1249,7 @@ async function main(): Promise<void> {
           {
             id: row.id,
             resinPackageId: resinPackageIds,
-            shipmentType: row.shipmentType ?? '',
+            shipmentType: row.shipmentType ?? 'N/A',
             createdAt: asDate(
               row.createdAt,
               'resinPackageShipment.createdAt',

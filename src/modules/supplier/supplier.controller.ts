@@ -92,9 +92,13 @@ export class SupplierController {
     description: 'Filter suppliers by company ID',
     type: String,
   })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   async findAll(
     @Query('companyId') companyId?: number,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ): Promise<SupplierResponseDTO[]> {
-    return this.supplierService.findAll(companyId);
+    return this.supplierService.findAll(companyId, Number(page), Number(limit));
   }
 }

@@ -215,6 +215,7 @@ export class LotService {
       // .leftJoinAndSelect('batchBales.bale', 'bale')
       // .leftJoinAndSelect('bale.company', 'company')
       .orderBy('"lot"."createdAt"', 'DESC')
+      .addOrderBy('"lot"."id"', 'DESC')
       .andWhere('"lot"."status" = :status', {
         status: 'Ongoing',
       });
@@ -254,6 +255,16 @@ export class LotService {
           toDate: new Date(query.toDate),
         });
       }
+    }
+
+    const requestedLimit = Math.trunc(Number(query.limit));
+    if (Number.isFinite(requestedLimit) && requestedLimit > 0) {
+      const requestedPage = Number(query.page);
+      const page = Number.isFinite(requestedPage)
+        ? Math.max(Math.trunc(requestedPage), 1)
+        : 1;
+      const safeLimit = Math.min(requestedLimit, 100);
+      queryBuilder.skip((page - 1) * safeLimit).take(safeLimit);
     }
 
     const lots = await queryBuilder.getMany();

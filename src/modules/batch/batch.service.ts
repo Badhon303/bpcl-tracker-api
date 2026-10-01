@@ -167,7 +167,11 @@ export class BatchService {
     // Emit event here
     this.eventEmitter.emit(
       'assign-bale.created',
-      new AssignBaleEvent(batch.companyId, bale.baleShipmentWeight, bale.packagingType),
+      new AssignBaleEvent(
+        batch.companyId,
+        bale.baleShipmentWeight,
+        bale.packagingType,
+      ),
     );
 
     const company2 = await this.companyService.findById(batch.companyId);
@@ -208,7 +212,8 @@ export class BatchService {
       .leftJoinAndSelect('batch.batchBales', 'batchBales')
       .leftJoinAndSelect('batchBales.bale', 'bale')
       .leftJoinAndSelect('bale.company', 'company')
-      .orderBy('"batch"."createdAt"', 'DESC');
+      .orderBy('"batch"."createdAt"', 'DESC')
+      .addOrderBy('"batch"."id"', 'DESC');
 
     if (query.companyId) {
       await this.companyService.findById(query.companyId);
@@ -249,6 +254,16 @@ export class BatchService {
           toDate: new Date(query.toDate),
         });
       }
+    }
+
+    const requestedLimit = Math.trunc(Number(query.limit));
+    if (Number.isFinite(requestedLimit) && requestedLimit > 0) {
+      const requestedPage = Number(query.page);
+      const page = Number.isFinite(requestedPage)
+        ? Math.max(Math.trunc(requestedPage), 1)
+        : 1;
+      const safeLimit = Math.min(requestedLimit, 100);
+      queryBuilder.skip((page - 1) * safeLimit).take(safeLimit);
     }
 
     const batches = await queryBuilder.getMany();

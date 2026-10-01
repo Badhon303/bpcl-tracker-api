@@ -28,4 +28,12 @@ export class GetLotDTO {
   @IsInt()
   @IsOptional()
   companyId?: number;
+
+  @ApiProperty({ required: false, example: 1 })
+  @IsOptional()
+  page?: number;
+
+  @ApiProperty({ required: false, example: 20 })
+  @IsOptional()
+  limit?: number;
 }

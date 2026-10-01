@@ -37,4 +37,12 @@ export class GetBatchDTO {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @ApiProperty({ required: false, example: 1 })
+  @IsOptional()
+  page?: number;
+
+  @ApiProperty({ required: false, example: 20 })
+  @IsOptional()
+  limit?: number;
 }

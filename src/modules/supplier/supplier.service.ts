@@ -91,17 +91,34 @@ export class SupplierService {
     return supplier;
   }
 
-  async findAll(companyId?: number): Promise<SupplierResponseDTO[]> {
+  async findAll(
+    companyId?: number,
+    page?: number,
+    limit?: number,
+  ): Promise<SupplierResponseDTO[]> {
     if (companyId) {
       await this.companyService.findById(companyId);
     }
+
+    const requestedPage = Number(page);
+    const safePage = Number.isFinite(requestedPage)
+      ? Math.max(Math.trunc(requestedPage), 1)
+      : 1;
+    const safeLimit =
+      limit !== undefined && Number.isFinite(limit) && limit > 0
+        ? Math.max(1, Math.min(Math.trunc(limit), 100))
+        : undefined;
 
     const suppliers = await this.supplierRepository.find({
       where: { companyId },
       relations: ['company'],
       order: {
         supplierName: 'ASC',
+        id: 'ASC',
       },
+      ...(safeLimit
+        ? { skip: (safePage - 1) * safeLimit, take: safeLimit }
+        : {}),
     });
 
     const mappedSuppliers = suppliers.map((supplier) => ({

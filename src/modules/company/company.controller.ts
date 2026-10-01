@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   HttpStatus,
+  Query,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
@@ -9,6 +10,7 @@ import {
   ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
 } from '@nestjs/swagger';
 import {
@@ -41,7 +43,9 @@ export class CompanyController {
     status: HttpStatus.INTERNAL_SERVER_ERROR,
     description: 'Failed to retrieve company records due to a server error.',
   })
-  async findAll() {
-    return this.companyService.findAll();
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  async findAll(@Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.companyService.findAll(Number(page), Number(limit));
   }
 }

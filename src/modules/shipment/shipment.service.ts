@@ -50,7 +50,7 @@ export class ShipmentService {
     @Inject(forwardRef(() => BaleService))
     private readonly baleService: BaleService,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
 
   async create(createShipmentDto: CreateShipmentDTO): Promise<Shipment> {
     const queryRunner =
@@ -84,8 +84,6 @@ export class ShipmentService {
       });
 
       const savedShipment = await queryRunner.manager.save(shipment);
-
-
 
       await queryRunner.commitTransaction();
 
@@ -122,7 +120,6 @@ export class ShipmentService {
       throw new NotFoundException('Shipment not found');
     }
     const company = await this.companyService.findById(shipment.companyId);
-
 
     const existing = await this.shipmentBaleRepository.findOne({
       where: { baleId },
@@ -172,7 +169,13 @@ export class ShipmentService {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
-    this.updateToFabric(shipmentId, baleId, bale.companyId, baleShipmentWeight, company);
+    this.updateToFabric(
+      shipmentId,
+      baleId,
+      bale.companyId,
+      baleShipmentWeight,
+      company,
+    );
 
     return result;
   }
@@ -186,7 +189,8 @@ export class ShipmentService {
       .leftJoinAndSelect('shipmentBales.bale', 'bale')
       .leftJoinAndSelect('shipment.driver', 'driver')
       .leftJoinAndSelect('shipment.vehicle', 'vehicle')
-      .orderBy('"shipment"."createdAt"', 'DESC');
+      .orderBy('"shipment"."createdAt"', 'DESC')
+      .addOrderBy('"shipment"."id"', 'DESC');
 
     if (query.companyId) {
       await this.companyService.findById(query.companyId);
@@ -228,6 +232,16 @@ export class ShipmentService {
           toDate: new Date(query.toDate),
         });
       }
+    }
+
+    const requestedLimit = Math.trunc(Number(query.limit));
+    if (Number.isFinite(requestedLimit) && requestedLimit > 0) {
+      const requestedPage = Number(query.page);
+      const page = Number.isFinite(requestedPage)
+        ? Math.max(Math.trunc(requestedPage), 1)
+        : 1;
+      const safeLimit = Math.min(requestedLimit, 100);
+      queryBuilder.skip((page - 1) * safeLimit).take(safeLimit);
     }
 
     const shipments = await queryBuilder.getMany();
@@ -312,10 +326,7 @@ export class ShipmentService {
     return plainToClass(ShipmentResponseDTO, shipment);
   }
 
-  private async saveToFabric(
-    result: any,
-    company: Company,
-  ): Promise<void> {
+  private async saveToFabric(result: any, company: Company): Promise<void> {
     const shipmentData: bShipmentData = {
       shipmentId: result.id,
       shipmentDisplayId: result.shipmentDisplayId,
