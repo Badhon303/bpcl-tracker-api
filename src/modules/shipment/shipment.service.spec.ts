@@ -8,7 +8,7 @@ describe('ShipmentService', () => {
       startTransaction: jest.fn(),
       manager: {
         save: jest.fn(async (shipment: Record<string, any>) => {
-          Object.assign(savedShipment, shipment, { id: 637 });
+          Object.assign(savedShipment, shipment, { id: 7 });
           return savedShipment;
         }),
       },
@@ -47,7 +47,7 @@ describe('ShipmentService', () => {
       userId: 2,
     });
 
-    expect(result.shipmentDisplayId).toBe('637');
+    expect(result.shipmentDisplayId).toBe('7');
     expect(queryRunner.manager.save).toHaveBeenCalledTimes(2);
   });
 

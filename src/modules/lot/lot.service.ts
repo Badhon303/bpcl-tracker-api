@@ -214,8 +214,8 @@ export class LotService {
       // .leftJoinAndSelect('batch.batchBales', 'batchBales')
       // .leftJoinAndSelect('batchBales.bale', 'bale')
       // .leftJoinAndSelect('bale.company', 'company')
-      .orderBy('"lot"."createdAt"', 'DESC')
-      .addOrderBy('"lot"."id"', 'DESC')
+      .orderBy('lot.createdAt', 'DESC')
+      .addOrderBy('lot.id', 'DESC')
       .andWhere('"lot"."status" = :status', {
         status: 'Ongoing',
       });

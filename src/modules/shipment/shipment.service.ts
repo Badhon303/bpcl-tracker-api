@@ -333,7 +333,7 @@ export class ShipmentService {
   }
 
   private formatShipmentDisplayId(id: number): string {
-    return id.toString().padStart(3, '0');
+    return id.toString();
   }
 
   private async saveToFabric(result: any, company: Company): Promise<void> {

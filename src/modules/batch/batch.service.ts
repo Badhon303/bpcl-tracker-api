@@ -63,10 +63,8 @@ export class BatchService {
 
       await this.authService.findById(createBatchDto.userId);
 
-      const batchDisplayId = '001';
       const batch = queryRunner.manager.create(Batch, {
         ...createBatchDto,
-        batchDisplayId,
         createdAt: new Date(),
         updatedAt: new Date(),
         createdBy: createBatchDto.userId,
@@ -74,6 +72,8 @@ export class BatchService {
       });
 
       const savedBatch = await queryRunner.manager.save(batch);
+      savedBatch.batchDisplayId = this.formatBatchDisplayId(savedBatch.id);
+      await queryRunner.manager.save(savedBatch);
 
       await this.saveToFabric(savedBatch, company);
 
@@ -93,6 +93,7 @@ export class BatchService {
 
       return plainToClass(BatchResponseDTO, {
         ...result,
+        batchDisplayId: this.formatBatchDisplayId(result.id),
         totalBales: 0,
       });
     } catch (err) {
@@ -154,6 +155,7 @@ export class BatchService {
     batch.weight = (batch.weight || 0) + bale.baleShipmentWeight;
 
     batch.companyBaleWeights = companyBaleWeights;
+    batch.batchDisplayId = this.formatBatchDisplayId(batch.id);
     batch.updatedAt = new Date();
     await this.batchRepository.save(batch);
 
@@ -189,6 +191,7 @@ export class BatchService {
 
     return plainToClass(BatchResponseDTO, {
       ...result,
+      batchDisplayId: this.formatBatchDisplayId(result.id),
       totalBales: result.batchBales?.length || 0,
       batchBales: result.batchBales.map((bb) =>
         plainToInstance(BatchBaleResponseDTO, {
@@ -212,8 +215,8 @@ export class BatchService {
       .leftJoinAndSelect('batch.batchBales', 'batchBales')
       .leftJoinAndSelect('batchBales.bale', 'bale')
       .leftJoinAndSelect('bale.company', 'company')
-      .orderBy('"batch"."createdAt"', 'DESC')
-      .addOrderBy('"batch"."id"', 'DESC');
+      .orderBy('batch.createdAt', 'DESC')
+      .addOrderBy('batch.id', 'DESC');
 
     if (query.companyId) {
       await this.companyService.findById(query.companyId);
@@ -271,6 +274,7 @@ export class BatchService {
     return batches.map((batch) =>
       plainToClass(BatchResponseDTO, {
         ...batch,
+        batchDisplayId: this.formatBatchDisplayId(batch.id),
         totalBales: batch.batchBales?.length || 0,
         batchBales: batch.batchBales.map((bb) =>
           plainToInstance(BatchBaleResponseDTO, {
@@ -301,6 +305,7 @@ export class BatchService {
 
     return plainToClass(BatchResponseDTO, {
       ...batch,
+      batchDisplayId: this.formatBatchDisplayId(batch.id),
       totalBales: batch.batchBales?.length || 0,
       batchBales: batch.batchBales.map((bb) =>
         plainToInstance(BatchBaleResponseDTO, {
@@ -339,12 +344,14 @@ export class BatchService {
     } else {
       batch.batchCreationStatus = Status.Completed;
     }
+    batch.batchDisplayId = this.formatBatchDisplayId(batch.id);
     batch.updatedAt = new Date();
 
     const updatedBatch = await this.batchRepository.save(batch);
 
     return plainToClass(BatchResponseDTO, {
       ...updatedBatch,
+      batchDisplayId: this.formatBatchDisplayId(updatedBatch.id),
       totalBales: updatedBatch.batchBales?.length || 0,
       batchBales: updatedBatch.batchBales.map((bb) =>
         plainToInstance(BatchBaleResponseDTO, {
@@ -360,6 +367,10 @@ export class BatchService {
         }),
       ),
     });
+  }
+
+  private formatBatchDisplayId(id: number): string {
+    return id.toString();
   }
 
   private async saveToFabric(batch: Batch, company: Company): Promise<void> {
