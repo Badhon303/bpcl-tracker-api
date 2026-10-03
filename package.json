@@ -98,6 +98,7 @@
       "<rootDir>/libs/"
     ],
     "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/src/$1",
       "^@bpcl/fabric(|/.*)$": "<rootDir>/libs/fabric/src/$1",
       "^bpcl/common(|/.*)$": "<rootDir>/libs/common/src/$1"
     }

@@ -71,10 +71,8 @@ export class ShipmentService {
           : Promise.resolve(null),
       ]);
 
-      const shipmentDisplayId = '001';
       const shipment = this.shipmentRepository.create({
         ...createShipmentDto,
-        shipmentDisplayId,
         totalBales: 0,
         totalWeight: 0,
         createdAt: new Date(),
@@ -84,6 +82,10 @@ export class ShipmentService {
       });
 
       const savedShipment = await queryRunner.manager.save(shipment);
+      savedShipment.shipmentDisplayId = this.formatShipmentDisplayId(
+        savedShipment.id,
+      );
+      await queryRunner.manager.save(savedShipment);
 
       await queryRunner.commitTransaction();
 
@@ -137,6 +139,7 @@ export class ShipmentService {
 
     shipment.totalBales = (shipment.totalBales || 0) + 1;
     shipment.totalWeight = (shipment.totalWeight || 0) + dto.baleShipmentWeight;
+    shipment.shipmentDisplayId = this.formatShipmentDisplayId(shipment.id);
     shipment.updatedAt = new Date();
     await this.shipmentRepository.save(shipment);
 
@@ -246,11 +249,7 @@ export class ShipmentService {
 
     const shipments = await queryBuilder.getMany();
 
-    return shipments.map((shipment) =>
-      plainToClass(ShipmentResponseDTO, {
-        ...shipment,
-      }),
-    );
+    return shipments.map((shipment) => this.toShipmentResponse(shipment));
   }
 
   async getShipmentReport(
@@ -323,7 +322,18 @@ export class ShipmentService {
       throw new NotFoundException('Shipment with the given ID not found');
     }
 
-    return plainToClass(ShipmentResponseDTO, shipment);
+    return this.toShipmentResponse(shipment);
+  }
+
+  private toShipmentResponse(shipment: Shipment): ShipmentResponseDTO {
+    return plainToClass(ShipmentResponseDTO, {
+      ...shipment,
+      shipmentDisplayId: this.formatShipmentDisplayId(shipment.id),
+    });
+  }
+
+  private formatShipmentDisplayId(id: number): string {
+    return id.toString().padStart(3, '0');
   }
 
   private async saveToFabric(result: any, company: Company): Promise<void> {
@@ -367,11 +377,12 @@ export class ShipmentService {
     }
 
     shipment.status = status;
+    shipment.shipmentDisplayId = this.formatShipmentDisplayId(shipment.id);
     shipment.updatedAt = new Date();
 
     const updatedShipment = await this.shipmentRepository.save(shipment);
 
-    return plainToClass(ShipmentResponseDTO, updatedShipment);
+    return this.toShipmentResponse(updatedShipment);
   }
 
   private async updateToFabric(
