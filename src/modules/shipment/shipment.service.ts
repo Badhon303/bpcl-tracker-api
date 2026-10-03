@@ -189,8 +189,8 @@ export class ShipmentService {
       .leftJoinAndSelect('shipmentBales.bale', 'bale')
       .leftJoinAndSelect('shipment.driver', 'driver')
       .leftJoinAndSelect('shipment.vehicle', 'vehicle')
-      .orderBy('"shipment"."createdAt"', 'DESC')
-      .addOrderBy('"shipment"."id"', 'DESC');
+      .orderBy('shipment.createdAt', 'DESC')
+      .addOrderBy('shipment.id', 'DESC');
 
     if (query.companyId) {
       await this.companyService.findById(query.companyId);
