@@ -1,6 +1,5 @@
 import { bLotData, bLotService, bOrganizationContext } from '@bpcl/fabric';
 import {
-  ConflictException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -9,14 +8,13 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
 import { defer, lastValueFrom, retry } from 'rxjs';
-import { In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { AuthService } from '../auth/auth.service';
 import { BaleResponseDTO } from '../bale/dto/bale-response.dto';
 import { BatchBaleResponseDTO } from '../batch/dto/batch-bale-response.dto';
 import { BatchResponseDTO } from '../batch/dto/batch-response.dto';
 import { CompanyService } from '../company/company.service';
 import { Company } from '../company/entities/company.entity';
-import { PreproductPackage } from '../preproduct-package/entities/preproduct-package.entity';
 import { PreproductResponseDTO } from '../preproduct/dto/preproduct-response.dto';
 import { PreproductService } from '../preproduct/preproduct.service';
 import { CreateLotDTO } from './dtos/create-lot.dto';
@@ -35,8 +33,6 @@ export class LotService {
     private lotRepository: Repository<Lot>,
     @InjectRepository(LotPreproduct)
     private lotPreproductRepository: Repository<LotPreproduct>,
-    @InjectRepository(PreproductPackage)
-    private preproductPackageRepository: Repository<PreproductPackage>,
     private companyService: CompanyService,
     private authService: AuthService,
     private preproductService: PreproductService,
@@ -61,60 +57,9 @@ export class LotService {
 
       let weight = 0;
 
-      // Check if preproduct exist and aren't already in a lot
+      // A preproduct can be shared by multiple lots and packages.
       if (preproductIds && preproductIds.length > 0) {
-        // 1. Check if all preproduct exist
-
-        // for (const preproductId of preproductIds) {
-        //   const preproduct =
-        //     await this.preproductService.findById(preproductId);
-        //   weight += preproduct.preproductWeight;
-        // }
-
         weight = await this.preproductService.sumWeightByIds(preproductIds);
-
-        // 2. Check if any preproduct is already in a lot
-        const existinglotPreproducts = await queryRunner.manager
-          .createQueryBuilder(LotPreproduct, 'lotPreproduct')
-          .where('lotPreproduct.preproductId IN (:...preproductIds)', {
-            preproductIds,
-          })
-          .getMany();
-
-        if (existinglotPreproducts.length > 0) {
-          const usedPreproductIds = existinglotPreproducts.map(
-            (sb) => sb.preproductId,
-          );
-          throw new ConflictException(
-            `Preproduct with ID ${usedPreproductIds.join(', ')} is already associated with another lot`,
-          );
-        }
-        // 3. Check if any preproduct is already used for creating preproduct package
-        // for (const preproductId of preproductIds) {
-        //   const preproduct = await queryRunner.manager.findOne(
-        //     this.preproductPackageRepository.target,
-        //     { where: { preproductId } },
-        //   );
-        //   if (preproduct) {
-        //     throw new ConflictException(
-        //       `Preproduct with id ${preproductId} is already used for creating preproduct packages`,
-        //     );
-        //   }
-        // }
-        const used = await queryRunner.manager.find(
-          this.preproductPackageRepository.target,
-          {
-            where: { preproductId: In(preproductIds) },
-            select: ['preproductId'],
-          },
-        );
-
-        if (used.length > 0) {
-          const uniqueIds = [...new Set(used.map((u) => u.preproductId))];
-          throw new ConflictException(
-            `These preproducts are already used for creating preproduct packages: ${uniqueIds.join(', ')}`,
-          );
-        }
       }
 
       const lot = queryRunner.manager.create(this.lotRepository.target, {

@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   ArrayNotEmpty,
+  ArrayUnique,
   IsArray,
   IsInt,
   IsNotEmpty,
@@ -38,12 +39,14 @@ export class CreateLotDTO {
   userId: number;
 
   @ApiProperty({
-    description: 'Array of preproduct IDs associated with the lot',
+    description:
+      'Unique preproduct IDs for this lot. Preproducts may also be used in other lots and packages.',
     example: [1, 2],
     type: [Number],
   })
   @IsArray()
   @ArrayNotEmpty()
+  @ArrayUnique()
   @IsInt({ each: true })
   preproductIds: number[];
 }
