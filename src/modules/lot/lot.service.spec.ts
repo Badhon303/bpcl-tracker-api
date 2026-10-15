@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { PreproductPackage } from '../preproduct-package/entities/preproduct-package.entity';
@@ -15,6 +15,7 @@ describe('Preproduct reuse across packages and lots', () => {
   let links: any[];
   let packages: any[];
   let queryRunner: any;
+  let sourcePreproducts: any[];
   const preproduct = { id: 10, preproductWeight: 100, productType: 'PET' };
   const company = { id: 1, name: 'BPCL', peerName: 'Org1' };
   const fabricLots = { createLot: jest.fn().mockResolvedValue({}) };
@@ -40,6 +41,7 @@ describe('Preproduct reuse across packages and lots', () => {
     lots = [];
     links = [];
     packages = [];
+    sourcePreproducts = [{ ...preproduct }];
     const manager = {
       create: jest.fn((_target, data) => ({ ...data })),
       save: jest.fn(async (targetOrData, data?) => {
@@ -102,6 +104,8 @@ describe('Preproduct reuse across packages and lots', () => {
     const preproductService = {
       findById: async () => preproduct,
       sumWeightByIds: async () => preproduct.preproductWeight,
+      findPreproductByIds: async (ids: number[]) =>
+        sourcePreproducts.filter((source) => ids.includes(source.id)),
     };
     const events = { emit: jest.fn() };
     lotService = new LotService(
@@ -130,7 +134,7 @@ describe('Preproduct reuse across packages and lots', () => {
 
     expect(packages.map((pkg) => pkg.preproductId)).toEqual([10, 10]);
     expect(first.id).not.toBe(second.id);
-    expect([first.weight, second.weight]).toEqual([100, 100]);
+    expect([first.weight, second.weight]).toEqual([50, 50]);
     expect(links).toEqual([
       { lotId: first.id, preproductId: 10 },
       { lotId: second.id, preproductId: 10 },
@@ -151,12 +155,69 @@ describe('Preproduct reuse across packages and lots', () => {
     expect(queryRunner.rollbackTransaction).not.toHaveBeenCalled();
   });
 
-  it('allows a lot even when the full preproduct weight has been packaged', async () => {
+  it('does not create a lot with no weight left after packaging', async () => {
     await packageService.create(packageRequest([100]) as any);
+    await expect(lotService.create(lotRequest)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(lots).toHaveLength(0);
+    expect(fabricLots.createLot).not.toHaveBeenCalled();
+  });
+
+  it('creates a 14347 kg lot from 19347 kg after 5000 kg has been packaged', async () => {
+    sourcePreproducts = [{ ...preproduct, preproductWeight: 19347 }];
+    packages.push({ preproductId: 10, packageWeight: 5000 });
+
     const lot = await lotService.create(lotRequest);
 
-    expect(lot.lotPreproducts[0].preproductId).toBe(10);
-    expect(lot.weight).toBe(100);
+    expect(lot.weight).toBe(14347);
+    expect(lots[0].weight).toBe(14347);
+  });
+
+  it('sums the remaining weight of each source without counting other packages', async () => {
+    sourcePreproducts.push({ id: 11, preproductWeight: 200 });
+    packages.push(
+      { preproductId: 10, packageWeight: 20 },
+      { preproductId: 10, packageWeight: 30 },
+      { preproductId: 11, packageWeight: 40 },
+      { preproductId: 99, packageWeight: 900 },
+    );
+
+    const lot = await lotService.create({
+      ...lotRequest,
+      preproductIds: [10, 11],
+    });
+
+    expect(lot.weight).toBe(210);
+  });
+
+  it('deducts only each source contribution when a package mixes two preproducts', async () => {
+    sourcePreproducts.push({ id: 11, preproductWeight: 200 });
+    packages.push({
+      preproductId: 10,
+      packageWeight: 50,
+      remainingPreproductId: 11,
+      remainingWeight: 20,
+    });
+
+    const mainLot = await lotService.create(lotRequest);
+    const remainingLot = await lotService.create({
+      ...lotRequest,
+      preproductIds: [11],
+    });
+
+    expect(mainLot.weight).toBe(70);
+    expect(remainingLot.weight).toBe(180);
+  });
+
+  it('keeps the saved lot weight stable when packages are created later', async () => {
+    packages.push({ preproductId: 10, packageWeight: 20 });
+    const lot = await lotService.create(lotRequest);
+    packages.push({ preproductId: 10, packageWeight: 30 });
+
+    expect(lots[0].weight).toBe(80);
+    expect(lot.weight).toBe(80);
+    expect((await lotService.create(lotRequest)).weight).toBe(50);
   });
 
   it('retains the package weight limit across repeated requests', async () => {

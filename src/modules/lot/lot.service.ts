@@ -1,5 +1,6 @@
 import { bLotData, bLotService, bOrganizationContext } from '@bpcl/fabric';
 import {
+  BadRequestException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -8,13 +9,14 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
 import { defer, lastValueFrom, retry } from 'rxjs';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { AuthService } from '../auth/auth.service';
 import { BaleResponseDTO } from '../bale/dto/bale-response.dto';
 import { BatchBaleResponseDTO } from '../batch/dto/batch-bale-response.dto';
 import { BatchResponseDTO } from '../batch/dto/batch-response.dto';
 import { CompanyService } from '../company/company.service';
 import { Company } from '../company/entities/company.entity';
+import { PreproductPackage } from '../preproduct-package/entities/preproduct-package.entity';
 import { PreproductResponseDTO } from '../preproduct/dto/preproduct-response.dto';
 import { PreproductService } from '../preproduct/preproduct.service';
 import { CreateLotDTO } from './dtos/create-lot.dto';
@@ -57,9 +59,57 @@ export class LotService {
 
       let weight = 0;
 
-      // A preproduct can be shared by multiple lots and packages.
+      // Snapshot the weight still available after packaging. The source QR can
+      // be reused, but packages already created must not inflate the new lot.
       if (preproductIds && preproductIds.length > 0) {
-        weight = await this.preproductService.sumWeightByIds(preproductIds);
+        const preproducts =
+          await this.preproductService.findPreproductByIds(preproductIds);
+        const packages = await queryRunner.manager.find(PreproductPackage, {
+          where: [
+            { preproductId: In(preproductIds) },
+            { remainingPreproductId: In(preproductIds) },
+          ],
+          select: [
+            'preproductId',
+            'remainingPreproductId',
+            'packageWeight',
+            'remainingWeight',
+          ],
+        });
+        const packagedWeights = new Map<number, number>();
+        for (const pkg of packages) {
+          const remainingWeight = pkg.remainingPreproductId
+            ? Number(pkg.remainingWeight || 0)
+            : 0;
+          packagedWeights.set(
+            pkg.preproductId,
+            (packagedWeights.get(pkg.preproductId) || 0) +
+              Number(pkg.packageWeight) -
+              remainingWeight,
+          );
+          if (pkg.remainingPreproductId) {
+            packagedWeights.set(
+              pkg.remainingPreproductId,
+              (packagedWeights.get(pkg.remainingPreproductId) || 0) +
+                remainingWeight,
+            );
+          }
+        }
+        weight = preproducts.reduce(
+          (sum, preproduct) =>
+            sum +
+            Math.max(
+              0,
+              preproduct.preproductWeight -
+                (packagedWeights.get(preproduct.id) || 0),
+            ),
+          0,
+        );
+        if (weight <= 0) {
+          throw new BadRequestException(
+            'No preproduct weight remains available for this lot after packaging',
+          );
+        }
       }
 
       const lot = queryRunner.manager.create(this.lotRepository.target, {
